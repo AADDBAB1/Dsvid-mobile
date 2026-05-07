@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MP4 Player Mobile V0.1</title>
+
+<style>
+
+body{
+    margin:0;
+    background:#bfbfbf;
+    font-family:Arial, sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+}
+
+.player{
+    display:flex;
+    gap:15px;
+}
+
+/* PAINÉIS */
+
+.left-panel,
+.right-panel{
+    width:200px;
+    background:#d9d9d9;
+    padding:15px;
+    border-radius:15px;
+    box-sizing:border-box;
+}
+
+.center{
+    width:800px;
+}
+
+/* VIDEO */
+
+.top-screen{
+    position:relative;
+    background:black;
+    height:420px;
+    overflow:hidden;
+    border-radius:10px;
+}
+
+video{
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    background:black;
+}
+
+/* LEGENDA */
+
+#subtitle{
+    position:absolute;
+    bottom:80px;
+    left:0;
+    width:100%;
+    text-align:center;
+    color:white;
+    font-size:24px;
+    font-weight:bold;
+    text-shadow:2px 2px 5px black;
+    padding:10px;
+    box-sizing:border-box;
+    pointer-events:none;
+}
+
+/* PLAYLIST */
+
+.bottom-screen{
+    background:#222;
+    padding:10px;
+    height:300px;
+    overflow:auto;
+    color:white;
+    border-radius:10px;
+    margin-top:10px;
+}
+
+#videoList div{
+    padding:8px;
+    background:#333;
+    margin:5px 0;
+    cursor:pointer;
+    border-radius:8px;
+    transition:0.2s;
+}
+
+#videoList div:hover{
+    background:#555;
+}
+
+/* BOTÕES */
+
+button{
+    width:100%;
+    margin:5px 0;
+    padding:10px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:15px;
+}
+
+button:hover{
+    opacity:0.9;
+}
+
+input[type="range"]{
+    width:100%;
+    margin-bottom:15px;
+}
+
+/* FULLSCREEN MENU */
+
+.fullscreen-ui{
+    position:absolute;
+    bottom:0;
+    left:0;
+    width:100%;
+    display:none;
+    flex-direction:column;
+    background:rgba(0,0,0,0.75);
+    padding:10px;
+    box-sizing:border-box;
+}
+
+.fullscreen-ui.active{
+    display:flex;
+}
+
+.fs-bars{
+    display:flex;
+    gap:10px;
+    margin-bottom:10px;
+}
+
+.fs-bars input{
+    width:50%;
+}
+
+.fs-buttons{
+    display:flex;
+    justify-content:center;
+    gap:10px;
+}
+
+.fs-buttons button{
+    width:auto;
+    padding:8px 12px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="player">
+
+    <!-- ESQUERDA -->
+    <div class="left-panel">
+
+        <h3>Controles</h3>
+
+        <label>Tempo</label>
+        <input type="range" id="seekBar" min="0" max="100" value="0">
+
+        <label>Volume</label>
+        <input type="range" id="volumeBar" min="0" max="1" step="0.01" value="1">
+
+    </div>
+
+    <!-- CENTRO -->
+    <div class="center">
+
+        <!-- VIDEO -->
+        <div class="top-screen" id="videoContainer">
+
+            <video id="videoPlayer" playsinline></video>
+
+            <!-- LEGENDA -->
+            <div id="subtitle"></div>
+
+            <!-- MENU FULLSCREEN -->
+            <div class="fullscreen-ui" id="fullscreenUI">
+
+                <div class="fs-bars">
+
+                    <input type="range" id="fsSeekBar" min="0" max="100" value="0">
+
+                    <input type="range" id="fsVolumeBar" min="0" max="1" step="0.01" value="1">
+
+                </div>
+
+                <div class="fs-buttons">
+
+                    <button onclick="togglePlay()">⏯</button>
+
+                    <button onclick="backward()">⏪</button>
+
+                    <button onclick="forward()">⏩</button>
+
+                    <button onclick="muteVideo()">🔇</button>
+
+                    <button onclick="toggleFullscreenMenu()">👁</button>
+
+                    <button onclick="toggleFullscreen()">❌</button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- PLAYLIST -->
+        <div class="bottom-screen">
+
+            <input
+                type="file"
+                id="videoInput"
+                accept="video/mp4"
+                multiple
+                hidden
+            >
+
+            <button onclick="videoInput.click()">
+                Carregar Vídeos
+            </button>
+
+            <div id="videoList"></div>
+
+        </div>
+
+    </div>
+
+    <!-- DIREITA -->
+    <div class="right-panel">
+
+        <h3>Player</h3>
+
+        <button onclick="togglePlay()">
+            Play/Pause
+        </button>
+
+        <button onclick="stopVideo()">
+            Stop
+        </button>
+
+        <button onclick="backward()">
+            -10s
+        </button>
+
+        <button onclick="forward()">
+            +10s
+        </button>
+
+        <button onclick="muteVideo()">
+            Mute
+        </button>
+
+        <button onclick="toggleFullscreen()">
+            Tela Cheia
+        </button>
+
+        <!-- SRT -->
+        <input
+            type="file"
+            id="subtitleInput"
+            accept=".srt"
+            hidden
+        >
+
+        <button onclick="subtitleInput.click()">
+            Carregar Legenda SRT
+        </button>
+
+    </div>
+
+</div>
+
+<script>
+
+/* ELEMENTOS */
+
+const videoPlayer =
+    document.getElementById("videoPlayer");
+
+const videoInput =
+    document.getElementById("videoInput");
+
+const subtitleInput =
+    document.getElementById("subtitleInput");
+
+const videoList =
+    document.getElementById("videoList");
+
+const seekBar =
+    document.getElementById("seekBar");
+
+const volumeBar =
+    document.getElementById("volumeBar");
+
+const fsSeekBar =
+    document.getElementById("fsSeekBar");
+
+const fsVolumeBar =
+    document.getElementById("fsVolumeBar");
+
+const container =
+    document.getElementById("videoContainer");
+
+const subtitleDiv =
+    document.getElementById("subtitle");
+
+const fullscreenUI =
+    document.getElementById("fullscreenUI");
+
+/* DADOS */
+
+let videos = [];
+
+let subtitles = [];
+
+/* =========================
+   CARREGAR VIDEOS
+========================= */
+
+videoInput.onchange = (e)=>{
+
+    [...e.target.files].forEach(file=>{
+
+        videos.push({
+
+            name:file.name,
+
+            url:URL.createObjectURL(file)
+
+        });
+
+    });
+
+    renderVideos();
+
+    if(videos.length === e.target.files.length){
+
+        loadVideo(0);
+    }
+};
+
+function renderVideos(){
+
+    videoList.innerHTML = "";
+
+    videos.forEach((video,index)=>{
+
+        const div =
+            document.createElement("div");
+
+        div.innerText = video.name;
+
+        div.onclick = ()=>loadVideo(index);
+
+        videoList.appendChild(div);
+
+    });
+}
+
+function loadVideo(index){
+
+    videoPlayer.src =
+        videos[index].url;
+
+    videoPlayer.play();
+}
+
+/* =========================
+   CONTROLES
+========================= */
+
+function togglePlay(){
+
+    videoPlayer.paused
+        ? videoPlayer.play()
+        : videoPlayer.pause();
+}
+
+function stopVideo(){
+
+    videoPlayer.pause();
+
+    videoPlayer.currentTime = 0;
+}
+
+function forward(){
+
+    videoPlayer.currentTime = Math.min(
+
+        videoPlayer.currentTime + 10,
+
+        videoPlayer.duration || 0
+    );
+}
+
+function backward(){
+
+    videoPlayer.currentTime = Math.max(
+
+        videoPlayer.currentTime - 10,
+
+        0
+    );
+}
+
+function muteVideo(){
+
+    videoPlayer.muted =
+        !videoPlayer.muted;
+}
+
+/* =========================
+   SEEK BAR
+========================= */
+
+videoPlayer.addEventListener(
+    "timeupdate",
+    ()=>{
+
+        if(videoPlayer.duration){
+
+            const value =
+
+                (
+                    videoPlayer.currentTime /
+
+                    videoPlayer.duration
+
+                ) * 100;
+
+            seekBar.value = value;
+
+            fsSeekBar.value = value;
+        }
+
+        updateSubtitle();
+    }
+);
+
+seekBar.oninput = ()=>{
+
+    videoPlayer.currentTime =
+
+        (
+            seekBar.value / 100
+        ) * videoPlayer.duration;
+};
+
+fsSeekBar.oninput = ()=>{
+
+    videoPlayer.currentTime =
+
+        (
+            fsSeekBar.value / 100
+        ) * videoPlayer.duration;
+};
+
+/* =========================
+   VOLUME
+========================= */
+
+volumeBar.oninput = ()=>{
+
+    videoPlayer.volume =
+        volumeBar.value;
+
+    fsVolumeBar.value =
+        volumeBar.value;
+};
+
+fsVolumeBar.oninput = ()=>{
+
+    videoPlayer.volume =
+        fsVolumeBar.value;
+
+    volumeBar.value =
+        fsVolumeBar.value;
+};
+
+/* =========================
+   FULLSCREEN
+========================= */
+
+function toggleFullscreen(){
+
+    if(!document.fullscreenElement){
+
+        container.requestFullscreen();
+
+        fullscreenUI.classList.add(
+            "active"
+        );
+
+    }else{
+
+        document.exitFullscreen();
+
+        fullscreenUI.classList.remove(
+            "active"
+        );
+    }
+}
+
+/* =========================
+   MENU FULLSCREEN
+========================= */
+
+function toggleFullscreenMenu(){
+
+    fullscreenUI.classList.toggle(
+        "active"
+    );
+}
+
+/* =========================
+   LEGENDA SRT
+========================= */
+
+subtitleInput.onchange = (e)=>{
+
+    const file = e.target.files[0];
+
+    if(!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = (event)=>{
+
+        subtitles =
+            parseSRT(event.target.result);
+    };
+
+    reader.readAsText(file);
+};
+
+function parseSRT(data){
+
+    const blocks =
+        data.split(/\n\s*\n/);
+
+    let result = [];
+
+    blocks.forEach(block=>{
+
+        const lines =
+            block.split("\n");
+
+        if(lines.length >= 3){
+
+            const time =
+                lines[1];
+
+            const text =
+                lines
+                .slice(2)
+                .join("<br>");
+
+            const times =
+                time.split(" --> ");
+
+            result.push({
+
+                start:
+                    srtTimeToSeconds(
+                        times[0]
+                    ),
+
+                end:
+                    srtTimeToSeconds(
+                        times[1]
+                    ),
+
+                text:text
+            });
+        }
+    });
+
+    return result;
+}
+
+function srtTimeToSeconds(time){
+
+    const parts =
+
+        time
+        .replace(",",".")
+        .split(":");
+
+    return(
+
+        parseFloat(parts[0]) * 3600 +
+
+        parseFloat(parts[1]) * 60 +
+
+        parseFloat(parts[2])
+    );
+}
+
+function updateSubtitle(){
+
+    const current =
+        videoPlayer.currentTime;
+
+    const subtitle =
+        subtitles.find(sub=>
+
+            current >= sub.start &&
+
+            current <= sub.end
+        );
+
+    subtitleDiv.innerHTML =
+
+        subtitle
+            ? subtitle.text
+            : "";
+}
+
+/* =========================
+   TECLADO
+========================= */
+
+document.addEventListener(
+    "keydown",
+    (e)=>{
+
+        switch(e.code){
+
+            case "Space":
+
+                e.preventDefault();
+
+                togglePlay();
+
+                break;
+
+            case "ArrowRight":
+
+                forward();
+
+                break;
+
+            case "ArrowLeft":
+
+                backward();
+
+                break;
+
+            case "KeyM":
+
+                muteVideo();
+
+                break;
+
+            case "KeyF":
+
+                toggleFullscreen();
+
+                break;
+        }
+    }
+);
+
+/* =========================
+   LIMPAR MEMORIA
+========================= */
+
+window.addEventListener(
+    "beforeunload",
+    ()=>{
+
+        videos.forEach(video=>{
+
+            URL.revokeObjectURL(
+                video.url
+            );
+
+        });
+    }
+);
+
+</script>
+
+</body>
+</html>
